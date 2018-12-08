@@ -32,13 +32,13 @@ void putToBuf(struct Queue *q, char val) {
     q->buf[q->tail] = val;
     q->tail = (q->tail+1)%BUFSIZE;
     q->length++;
-    printf("Wsadzam %c, size: %d\n", val, q->length);
+    //printf("Wsadzam %c, size: %d\n", val, q->length);
 }
 char getFromBuf(struct Queue *q){
     char ret = q->buf[q->head];
     q->head = (q->head+1)%BUFSIZE;
     q->length--;
-    printf("Wyjmuje %d\n", ret);
+    //printf("Wyjmuje %d\n", ret);
     return ret;
 }
 ///////////////////////
@@ -96,6 +96,7 @@ void losujNumeryKolejek(int *tab){
 
 
 void Producent(int nr){
+    srand(time(NULL)+nr);
     int buffid = shmget(BUFFKEY, 5*sizeof(struct Queue), 0600);
     struct Queue *buffer = (struct Queue*)shmat(buffid, NULL, 0);
     int mutex = semget(MUTSYSKEY, 5, 0600);
@@ -125,12 +126,12 @@ while(1){
             break;
         }
     }
-    upAll(mutex);
+    //upAll(mutex);
     downS(emptyid, wsadzamDo);
-    //upAll(semid);
+    upAll(mutex);
     //tutaj ewentualnie up na tym sem sprzed for
     downS(mutex, wsadzamDo);
-        printf("\tPRODUCER %d\n", nr);
+        printf("PRODUCER %d do %d\n", nr, wsadzamDo);
         putToBuf(&buffer[wsadzamDo], nr);
     upS(mutex, wsadzamDo);
     upS(fullid, wsadzamDo);
@@ -149,7 +150,7 @@ void Consumer(int nr){ //konument wyjmuje zawsze z tej samej kolejki o indexie: 
     while(1){
         downS(fullid, nr);
         downS(semid, nr);
-            printf("\tCONSUMER %d\n", nr);
+            printf("CONSUMER %d\n", nr);
             getFromBuf(&buffer[nr]);
         upS(semid, nr);
         upS(emptyid, nr);
@@ -158,7 +159,7 @@ void Consumer(int nr){ //konument wyjmuje zawsze z tej samej kolejki o indexie: 
     }
 }
 int main() {
-    srand(time(NULL));
+    //srand(time(NULL));
     int buffid = shmget(BUFFKEY, 5*sizeof(struct Queue), IPC_CREAT|0600);
     struct Queue *buffer = (struct Queue*)shmat(buffid, NULL, 0);
 
