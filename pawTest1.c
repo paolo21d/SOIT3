@@ -19,7 +19,7 @@
 #define MUTEXFORKEY 1605
 
 #define ILOSC_KONSUMENTOW 5
-#define ILOSC_PRODUCENTOW 2
+#define ILOSC_PRODUCENTOW 3
 #define ILOSC_KOLEJEK 5
 static struct sembuf buf;
 static struct sembuf bb[ILOSC_KOLEJEK];
@@ -40,6 +40,14 @@ char getFromBuf(struct Queue *q){
     q->length--;
     //printf("Wyjmuje %d\n", ret);
     return ret;
+}
+void printfQueue(struct Queue *q, int nr){
+    printf("Queue %d: ", nr);
+    int index = q->head;
+    for(int i=0; i<q->length; ++i, ++index)
+        printf("%d ", q->buf[index%BUFSIZE]);
+
+    printf("\n");
 }
 ///////////////////////
 void upS(int semid, int semnum){
@@ -106,7 +114,7 @@ void Producent(int nr){
     int numeryKolejek[5];
     int wsadzamDo;
     ///
-    printf("Producer %d\n", nr);
+    printf("*********************Producer %d\n", nr);
 while(1){
     losujNumeryKolejek(numeryKolejek); //wylosowac ciag kolejek do ktorych probowac wejsc
     downS(groupEmptyId, 0); // czekanie az chociaz jedna kolejka bedzie NIEpelna
@@ -133,6 +141,7 @@ while(1){
     downS(mutex, wsadzamDo);
         printf("PRODUCER %d do %d\n", nr, wsadzamDo);
         putToBuf(&buffer[wsadzamDo], nr);
+        printfQueue(&buffer[wsadzamDo], wsadzamDo);
     upS(mutex, wsadzamDo);
     upS(fullid, wsadzamDo);
     sleep(1);
@@ -141,21 +150,22 @@ while(1){
 void Consumer(int nr){ //konument wyjmuje zawsze z tej samej kolejki o indexie: nr
     int buffid = shmget(BUFFKEY, 5*sizeof(struct Queue), 0600);
     struct Queue *buffer = (struct Queue*)shmat(buffid, NULL, 0);
-    int semid = semget(MUTSYSKEY, 5, 0600);
+    int mutex = semget(MUTSYSKEY, 5, 0600);
     int emptyid = semget(EMPTYKEY, 5, 0600);
     int fullid = semget(FULLKEY, 5, 0600);
     int groupEmptyId = semget(GROUPEMPTY, 1, 0600);
     ///
-    printf("Consumer %d\n", nr);
+    printf("*********************Consumer %d\n", nr);
     while(1){
         downS(fullid, nr);
-        downS(semid, nr);
-            printf("CONSUMER %d\n", nr);
+        downS(mutex, nr);
+            printf("\tCONSUMER %d\n", nr);
             getFromBuf(&buffer[nr]);
-        upS(semid, nr);
+            printfQueue(&buffer[nr], nr);
+        upS(mutex, nr);
         upS(emptyid, nr);
         upS(groupEmptyId, 0); // usunieto 1 elem z jakiejs kolejki = wzrosla liczba pustych elementow
-        sleep(2);
+        sleep(25);
     }
 }
 int main() {
@@ -210,7 +220,7 @@ int main() {
         if(pid[i]==0){ Consumer(i-ILOSC_PRODUCENTOW); }
     }
 
-    sleep(20);
+    sleep(50);
     for(int i=0; i<ILOSC_KONSUMENTOW+ILOSC_PRODUCENTOW; ++i)
         kill(pid[i], SIGKILL);
     shmdt(buffer);
