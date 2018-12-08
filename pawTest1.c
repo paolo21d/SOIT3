@@ -43,7 +43,7 @@ char getFromBuf(struct Queue *q){
     return ret;
 }
 void printfQueue(struct Queue *q, int nr){
-    printf("Queue %d: ", nr);
+    printf("Queue %d size %d: ", nr, q->length);
     int index = q->head;
     for(int i=0; i<q->length; ++i, ++index)
         printf("%d ", q->buf[index%BUFSIZE]);
@@ -105,7 +105,7 @@ void losujNumeryKolejek(int *tab){
 
 
 void Producent(int nr){
-    //srand(time(NULL)+nr);
+    srand(time(NULL)+nr*123);
     int buffid = shmget(BUFFKEY, 5*sizeof(struct Queue), 0600);
     struct Queue *buffer = (struct Queue*)shmat(buffid, NULL, 0);
     int mutex = semget(MUTSYSKEY, 5, 0600);
@@ -125,23 +125,20 @@ while(1){
     //downAll(mutex); //blokada wszystkich kolejek / ale chyba nie powiniennem konsumentow, to zrobic mutex dla samych producentow
     downAll(mutexProd);
     for(int i=0; i<5; ++i){ //szukanie pierwszej nie pelnej
-        /*buf.sem_num = numeryKolejek[wsadzamDo];
-        buf.sem_op = 0;
-        buf.sem_flg = 0;
-        if( semop(emptyid, &buf, 1) != -1){
+        /*if(buffer[numeryKolejek[i]].length<BUFSIZE){
+            wsadzamDo = numeryKolejek[i];
+            //buffer[wsadzamDo].length++;
+            //printf("Prod %d, wsadzam do %d\n", nr, wsadzamDo);
             break;
         }*/
-        if(buffer[numeryKolejek[i]].length<BUFSIZE){
+        if(semctl(emptyid, numeryKolejek[i], GETVAL) != 0){
             wsadzamDo = numeryKolejek[i];
-            //printf("Prod %d, wsadzam do %d\n", nr, wsadzamDo);
             break;
         }
     }
     //printf("PROD po FOR\n");
-    //upAll(mutex);
     downS(emptyid, wsadzamDo);
     //printf("PO DOWNS EMPTYID\n");
-    //upAll(mutex);
     upAll(mutexProd);
     //tutaj ewentualnie up na tym sem sprzed for
     downS(mutex, wsadzamDo);
@@ -175,7 +172,7 @@ void Consumer(int nr){ //konument wyjmuje zawsze z tej samej kolejki o indexie: 
     }
 }
 int main() {
-    srand(time(NULL));
+    //srand(time(NULL));
     int buffid = shmget(BUFFKEY, 5*sizeof(struct Queue), IPC_CREAT|0600);
     struct Queue *buffer = (struct Queue*)shmat(buffid, NULL, 0);
 
