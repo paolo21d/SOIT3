@@ -17,6 +17,7 @@
 #define MUTSYSKEY 1603
 #define GROUPEMPTY 1604
 #define MUTEXFORKEY 1605
+#define MUTEXPRODKEY 1606
 
 #define ILOSC_KONSUMENTOW 5
 #define ILOSC_PRODUCENTOW 3
@@ -69,23 +70,23 @@ void downS(int semid, int semnum){
  	}
 }
 void downAll(int semid){
-    for(int i=0; i<ILOSC_KOLEJEK; ++i){
+    for(int i=0; i<ILOSC_PRODUCENTOW; ++i){
         bb[i].sem_num=i;
         bb[i].sem_op = -1;
         bb[i].sem_flg = 0;
     }
-    if(semop(semid, &bb, ILOSC_KOLEJEK) == -1){
+    if(semop(semid, &bb, ILOSC_PRODUCENTOW) == -1){
         perror("Opuszczenie semafora downAll");
         exit(1);
     }
 }
 void upAll(int semid){
-    for(int i=0; i<ILOSC_KOLEJEK; ++i){
+    for(int i=0; i<ILOSC_PRODUCENTOW; ++i){
         bb[i].sem_num=i;
         bb[i].sem_op = 1;
         bb[i].sem_flg = 0;
     }
-    if(semop(semid, &bb, ILOSC_KOLEJEK) == -1){
+    if(semop(semid, &bb, ILOSC_PRODUCENTOW) == -1){
         perror("Podnoszenie semafora upAll");
         exit(1);
     }
@@ -104,13 +105,14 @@ void losujNumeryKolejek(int *tab){
 
 
 void Producent(int nr){
-    srand(time(NULL)+nr);
+    //srand(time(NULL)+nr);
     int buffid = shmget(BUFFKEY, 5*sizeof(struct Queue), 0600);
     struct Queue *buffer = (struct Queue*)shmat(buffid, NULL, 0);
     int mutex = semget(MUTSYSKEY, 5, 0600);
     int emptyid = semget(EMPTYKEY, 5, 0600);
     int fullid = semget(FULLKEY, 5, 0600);
     int groupEmptyId = semget(GROUPEMPTY, 1, 0600);
+    int mutexProd = semget(MUTEXPRODKEY, ILOSC_PRODUCENTOW, 0600);
     int numeryKolejek[5];
     int wsadzamDo;
     ///
@@ -120,7 +122,8 @@ while(1){
     downS(groupEmptyId, 0); // czekanie az chociaz jedna kolejka bedzie NIEpelna
     //printf("Producent %d wylosowal kolejki\n", nr);
             //moze tutaj dodac jeszcze jeden semafor blokujacy na wejsciu do tego for-a ??? ///chyba dodalem
-    downAll(mutex); //blokada wszystkich kolejek
+    //downAll(mutex); //blokada wszystkich kolejek / ale chyba nie powiniennem konsumentow, to zrobic mutex dla samych producentow
+    downAll(mutexProd);
     for(int i=0; i<5; ++i){ //szukanie pierwszej nie pelnej
         /*buf.sem_num = numeryKolejek[wsadzamDo];
         buf.sem_op = 0;
@@ -134,9 +137,12 @@ while(1){
             break;
         }
     }
+    //printf("PROD po FOR\n");
     //upAll(mutex);
     downS(emptyid, wsadzamDo);
-    upAll(mutex);
+    //printf("PO DOWNS EMPTYID\n");
+    //upAll(mutex);
+    upAll(mutexProd);
     //tutaj ewentualnie up na tym sem sprzed for
     downS(mutex, wsadzamDo);
         printf("PRODUCER %d do %d\n", nr, wsadzamDo);
@@ -169,7 +175,7 @@ void Consumer(int nr){ //konument wyjmuje zawsze z tej samej kolejki o indexie: 
     }
 }
 int main() {
-    //srand(time(NULL));
+    srand(time(NULL));
     int buffid = shmget(BUFFKEY, 5*sizeof(struct Queue), IPC_CREAT|0600);
     struct Queue *buffer = (struct Queue*)shmat(buffid, NULL, 0);
 
@@ -203,6 +209,14 @@ int main() {
         if(groupEmptyId==-1)    perror("BLAD GROUPEMPTYID");
     }
     semctl(groupEmptyId, 0, SETVAL, (int)(5*BUFSIZE));
+
+    int mutexProd = semget(MUTEXPRODKEY, ILOSC_PRODUCENTOW, IPC_CREAT|IPC_EXCL|0600); //mutex producentow- blokuje dostep do danej kolejki dla producentow
+    if(mutexProd==-1){
+        mutexProd = semget(MUTEXPRODKEY, ILOSC_PRODUCENTOW, 0600);
+        if(mutexProd==-1) perror("BLAD SEMID");
+    }
+    for(int i=0; i<ILOSC_PRODUCENTOW; ++i)
+        semctl(mutexProd, i, SETVAL, (int)1);
 
     for(int i=0; i<5; i++){
         buffer[i].length=0;
