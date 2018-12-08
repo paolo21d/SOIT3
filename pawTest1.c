@@ -11,12 +11,12 @@
 #include <time.h>
 
 #define BUFSIZE 10
-#define BUFFKEY   1500
-#define EMPTYKEY  1501
-#define FULLKEY   1502
-#define MUTSYSKEY 1503
-#define GROUPEMPTY 1504
-#define MUTEXFORKEY 1505
+#define BUFFKEY   1600
+#define EMPTYKEY  1601
+#define FULLKEY   1602
+#define MUTSYSKEY 1603
+#define GROUPEMPTY 1604
+#define MUTEXFORKEY 1605
 
 #define ILOSC_KONSUMENTOW 5
 #define ILOSC_PRODUCENTOW 2
