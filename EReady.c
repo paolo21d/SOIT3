@@ -66,7 +66,7 @@ void downC1S(int semid){
     bb[0].sem_op = -1;
     bb[1].sem_op = -4;
     bb[2].sem_op = -3;
-    if(semop(semid, &bb, 3) == -1){
+    if(semop(semid, bb, 3) == -1){
         perror("DownC1S");
         exit(1);
     }
@@ -80,7 +80,7 @@ void downC2S(int semid){
     bb[0].sem_op = -5;
     bb[1].sem_op = -2;
     bb[2].sem_op = -1;
-    if(semop(semid, &bb, 3) == -1){
+    if(semop(semid, bb, 3) == -1){
         perror("DownC2S");
         exit(1);
     }
@@ -94,7 +94,7 @@ void downC3S(int semid){
     bb[0].sem_op = -1;
     bb[1].sem_op = -1;
     bb[2].sem_op = -1;
-    if(semop(semid, &bb, 3) == -1){
+    if(semop(semid, bb, 3) == -1){
         perror("DownC3S");
         exit(1);
     }
@@ -107,7 +107,7 @@ void upC1S(int semid){
     bb[0].sem_op = 1;
     bb[1].sem_op = 4;
     bb[2].sem_op = 3;
-    if(semop(semid, &bb, 3) == -1){
+    if(semop(semid, bb, 3) == -1){
         perror("UPC1S");
         exit(1);
     }
@@ -120,7 +120,7 @@ void upC2S(int semid){
     bb[0].sem_op = 5;
     bb[1].sem_op = 2;
     bb[2].sem_op = 1;
-    if(semop(semid, &bb, 3) == -1){
+    if(semop(semid, bb, 3) == -1){
         perror("UPC2S");
         exit(1);
     }
@@ -133,7 +133,7 @@ void upC3S(int semid){
     bb[0].sem_op = 1;
     bb[1].sem_op = 1;
     bb[2].sem_op = 1;
-    if(semop(semid, &bb, 3) == -1){
+    if(semop(semid, bb, 3) == -1){
         perror("UPC3S");
         exit(1);
     }
@@ -144,7 +144,7 @@ void downAll(int semid){
         bb[i].sem_flg = 0;
         bb[i].sem_op = -1;
     }
-    if(semop(semid, &bb, 3) == -1){
+    if(semop(semid, bb, 3) == -1){
         perror("DownAll");
         exit(1);
     }
@@ -158,7 +158,7 @@ void upAll(int semid){
         bb[i].sem_op = 1;
     }
     //printf("ZARAZ SEMOP\n");
-    if(semop(semid, &bb, 3) == -1){
+    if(semop(semid, bb, 3) == -1){
         perror("UpAll");
         exit(1);
     }

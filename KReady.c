@@ -86,7 +86,7 @@ void downGroup(int semid, int buffA, int buffB, int buffC, int buffD){
         ilosc++;
     }
 
-    if(semop(semid, &bb, ilosc) == -1){
+    if(semop(semid, bb, ilosc) == -1){
         perror("DownGroup");
         exit(1);
     }
@@ -118,7 +118,7 @@ void upGroup(int semid, int buffA, int buffB, int buffC, int buffD){
         ilosc++;
     }
 
-    if(semop(semid, &bb, ilosc) == -1){
+    if(semop(semid, bb, ilosc) == -1){
         perror("UpGroup");
         exit(1);
     }
@@ -150,7 +150,7 @@ void downClient(int semid, int buffA, int buffB, int buffC, int buffD){
         ilosc++;
     }
 
-    if(semop(semid, &bb, ilosc) == -1){
+    if(semop(semid, bb, ilosc) == -1){
         perror("DownClient");
         exit(1);
     }
@@ -182,7 +182,7 @@ void upClient(int semid, int buffA, int buffB, int buffC, int buffD){
         ilosc++;
     }
 
-    if(semop(semid, &bb, ilosc) == -1){
+    if(semop(semid, bb, ilosc) == -1){
         perror("UpClient");
         exit(1);
     }
