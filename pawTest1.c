@@ -75,7 +75,7 @@ void downAll(int semid){
         bb[i].sem_op = -1;
         bb[i].sem_flg = 0;
     }
-    if(semop(semid, &bb, ILOSC_PRODUCENTOW) == -1){
+    if(semop(semid, bb, ILOSC_PRODUCENTOW) == -1){
         perror("Opuszczenie semafora downAll");
         exit(1);
     }
@@ -86,7 +86,7 @@ void upAll(int semid){
         bb[i].sem_op = 1;
         bb[i].sem_flg = 0;
     }
-    if(semop(semid, &bb, ILOSC_PRODUCENTOW) == -1){
+    if(semop(semid, bb, ILOSC_PRODUCENTOW) == -1){
         perror("Podnoszenie semafora upAll");
         exit(1);
     }
