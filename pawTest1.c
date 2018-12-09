@@ -106,29 +106,29 @@ void losujNumeryKolejek(int *tab){
 
 void Producent(int nr){
     srand(time(NULL)+nr*123);
-    int buffid = shmget(BUFFKEY, 5*sizeof(struct Queue), 0600);
+    int buffid = shmget(BUFFKEY, ILOSC_KOLEJEK*sizeof(struct Queue), 0600);
     struct Queue *buffer = (struct Queue*)shmat(buffid, NULL, 0);
-    int mutex = semget(MUTSYSKEY, 5, 0600);
-    int emptyid = semget(EMPTYKEY, 5, 0600);
-    int fullid = semget(FULLKEY, 5, 0600);
+    int mutex = semget(MUTSYSKEY, ILOSC_KOLEJEK, 0600);
+    int emptyid = semget(EMPTYKEY, ILOSC_KOLEJEK, 0600);
+    int fullid = semget(FULLKEY, ILOSC_KOLEJEK, 0600);
     int groupEmptyId = semget(GROUPEMPTY, 1, 0600);
-    int mutexProd = semget(MUTEXPRODKEY, ILOSC_PRODUCENTOW, 0600);
-    int numeryKolejek[5];
+    int mutexProd = semget(MUTEXPRODKEY, 1, 0600);
+    int numeryKolejek[ILOSC_KOLEJEK];
     int wsadzamDo;
     ///
     printf("*********************Producer %d\n", nr);
 while(1){
     losujNumeryKolejek(numeryKolejek); //wylosowac ciag kolejek do ktorych probowac wejsc
     downS(groupEmptyId, 0); // czekanie az chociaz jedna kolejka bedzie NIEpelna
-    downAll(mutexProd); // zablokowanie wszystkich producentow
-    for(int i=0; i<5; ++i){ //szukanie pierwszej nie pelnej kolejki
+    downS(mutexProd, 0); // zablokowanie wszystkich producentow
+    for(int i=0; i<ILOSC_KOLEJEK; ++i){ //szukanie pierwszej nie pelnej kolejki
         if(semctl(emptyid, numeryKolejek[i], GETVAL) != 0){
             wsadzamDo = numeryKolejek[i];
             break;
         }
     }
     downS(emptyid, wsadzamDo);
-    upAll(mutexProd); //odblokowanie producentow
+    upS(mutexProd, 0); //odblokowanie producentow
     downS(mutex, wsadzamDo);
         printf("PRODUCER %d do %d\n", nr, wsadzamDo);
         putToBuf(&buffer[wsadzamDo], nr);
@@ -139,11 +139,11 @@ while(1){
 }
 }
 void Consumer(int nr){ //konument wyjmuje zawsze z tej samej kolejki o indexie: nr
-    int buffid = shmget(BUFFKEY, 5*sizeof(struct Queue), 0600);
+    int buffid = shmget(BUFFKEY, ILOSC_KOLEJEK*sizeof(struct Queue), 0600);
     struct Queue *buffer = (struct Queue*)shmat(buffid, NULL, 0);
-    int mutex = semget(MUTSYSKEY, 5, 0600);
-    int emptyid = semget(EMPTYKEY, 5, 0600);
-    int fullid = semget(FULLKEY, 5, 0600);
+    int mutex = semget(MUTSYSKEY, ILOSC_KOLEJEK, 0600);
+    int emptyid = semget(EMPTYKEY, ILOSC_KOLEJEK, 0600);
+    int fullid = semget(FULLKEY, ILOSC_KOLEJEK, 0600);
     int groupEmptyId = semget(GROUPEMPTY, 1, 0600);
     ///
     printf("*********************Consumer %d\n", nr);
@@ -160,31 +160,31 @@ void Consumer(int nr){ //konument wyjmuje zawsze z tej samej kolejki o indexie: 
     }
 }
 int main() {
-    int buffid = shmget(BUFFKEY, 5*sizeof(struct Queue), IPC_CREAT|0600); //pamiec wspoldzielona
+    int buffid = shmget(BUFFKEY, ILOSC_KOLEJEK*sizeof(struct Queue), IPC_CREAT|0600); //pamiec wspoldzielona
     struct Queue *buffer = (struct Queue*)shmat(buffid, NULL, 0);
 
-    int semid = semget(MUTSYSKEY, 5, IPC_CREAT|IPC_EXCL|0600); //mutex - blokuje dostep do danej kolejki
+    int semid = semget(MUTSYSKEY, ILOSC_KOLEJEK, IPC_CREAT|IPC_EXCL|0600); //mutex - blokuje dostep do danej kolejki
     if(semid==-1){
-        semid = semget(MUTSYSKEY, 5, 0600);
+        semid = semget(MUTSYSKEY, ILOSC_KOLEJEK, 0600);
         if(semid==-1) perror("BLAD SEMID");
     }
-    for(int i=0; i<5; ++i)
+    for(int i=0; i<ILOSC_KOLEJEK; ++i)
         semctl(semid, i, SETVAL, (int)1);
 
-    int emptyid = semget(EMPTYKEY, 5, IPC_CREAT|IPC_EXCL|0600); //ile jest elemtnow empty w danej kolejce
+    int emptyid = semget(EMPTYKEY, ILOSC_KOLEJEK, IPC_CREAT|IPC_EXCL|0600); //ile jest elemtnow empty w danej kolejce
     if(emptyid==-1){
-        emptyid = semget(EMPTYKEY, 5, 0600);
+        emptyid = semget(EMPTYKEY, ILOSC_KOLEJEK, 0600);
         if(emptyid==-1) perror("BLAD EMPTYID");
     }
-    for(int i=0; i<5; ++i)
+    for(int i=0; i<ILOSC_KOLEJEK; ++i)
         semctl(emptyid, i, SETVAL, (int)BUFSIZE);
 
-    int fullid = semget(FULLKEY, 5, IPC_CREAT|IPC_EXCL|0600); //ile jest elemnetow full w danej kolejce
+    int fullid = semget(FULLKEY, ILOSC_KOLEJEK, IPC_CREAT|IPC_EXCL|0600); //ile jest elemnetow full w danej kolejce
     if(fullid==-1){
-        fullid = semget(FULLKEY, 5, 0600);
+        fullid = semget(FULLKEY, ILOSC_KOLEJEK, 0600);
         if(fullid==-1) perror("BLAD FULLID");
     }
-    for(int i=0; i<5; ++i)
+    for(int i=0; i<ILOSC_KOLEJEK; ++i)
         semctl(fullid, i, SETVAL, (int)0);
 
     int groupEmptyId = semget(GROUPEMPTY, 1, IPC_CREAT|IPC_EXCL|0600); //ile jest w ogolnosci we wszystkich kolejkach elem empty
@@ -192,17 +192,17 @@ int main() {
         groupEmptyId = semget(GROUPEMPTY, 1, 0600);
         if(groupEmptyId==-1)    perror("BLAD GROUPEMPTYID");
     }
-    semctl(groupEmptyId, 0, SETVAL, (int)(5*BUFSIZE));
+    semctl(groupEmptyId, 0, SETVAL, (int)(ILOSC_KOLEJEK*BUFSIZE));
 
-    int mutexProd = semget(MUTEXPRODKEY, ILOSC_PRODUCENTOW, IPC_CREAT|IPC_EXCL|0600); //mutex producentow- blokuje dostep do danej kolejki dla producentow
+    int mutexProd = semget(MUTEXPRODKEY, 1, IPC_CREAT|IPC_EXCL|0600); //mutex producentow- blokuje producentow
     if(mutexProd==-1){
-        mutexProd = semget(MUTEXPRODKEY, ILOSC_PRODUCENTOW, 0600);
+        mutexProd = semget(MUTEXPRODKEY, 1, 0600);
         if(mutexProd==-1) perror("BLAD SEMID");
     }
-    for(int i=0; i<ILOSC_PRODUCENTOW; ++i)
+    for(int i=0; i<1; ++i)
         semctl(mutexProd, i, SETVAL, (int)1);
 
-    for(int i=0; i<5; i++){
+    for(int i=0; i<ILOSC_KOLEJEK; i++){
         buffer[i].length=0;
         buffer[i].head=0;
         buffer[i].tail=0;
