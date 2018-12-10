@@ -11,11 +11,11 @@
 #include <time.h>
 
 #define BUFSIZE 10
-#define BUFFKEY   1500
-#define EMPTYKEY  1501
-#define FULLKEY   1502
-#define MUTSYSKEY 1503
-#define GROUPEMPTYKEY 1504
+#define BUFFKEY   1600
+#define EMPTYKEY  1601
+#define FULLKEY   1602
+#define MUTSYSKEY 1603
+#define GROUPEMPTYKEY 1604
 
 #define ILOSC_KOLEJEK 4
 
@@ -199,7 +199,7 @@ void losujNumeryKolejek(int *tab){
         tab[nrZamiana]=tmp;
     }
 }
-void Producent(){
+void Producent(int sleepProducer){
     srand(time(NULL));
     int buffid = shmget(BUFFKEY, 4*sizeof(struct Queue), 0600);
     struct Queue *buffer = (struct Queue*)shmat(buffid, NULL, 0);
@@ -213,7 +213,6 @@ void Producent(){
     printf("**************************Producent\n");
 while(1){
     losujNumeryKolejek(numeryKolejek);
-    //printf("przed downs groupempty %d \n", semctl(groupEmptyId, 0, GETVAL));
     downS(groupEmptyId, 0, 1); // czekanie az chociaz jedna kolejka bedzie NIEpelna
     for(int i=0; i<4; ++i){ //szukanie pierwszej nie pelnej kolejki
         if(semctl(emptyid, numeryKolejek[i], GETVAL) != 0){
@@ -221,20 +220,16 @@ while(1){
             break;
         }
     }
-    printf("przed downs emptyid\n");
-    //printf("przed downs emptyid putTo %d, %d %d %d %d  \n", putTo, numeryKolejek[0], numeryKolejek[1], numeryKolejek[2], numeryKolejek[3]);
-    downS(emptyid, putTo, 1); //zjebane!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    printf("przed downs semid\n");
-    //printf("przed downs semid\n");
+    downS(emptyid, putTo, 1);
     downS(semid, putTo, 1);
         printf("\tPRODUCER wsadza do kolejki %d\n", putTo);
         putToBuf(&buffer[putTo], putTo);
     upS(semid, putTo, 1);
     upS(fullid, putTo, 1);
-    sleep(1);
+    sleep(sleepProducer);
 }
 }
-void Consumer(int nr, int bufA, int bufB, int bufC, int bufD){
+void Consumer(int nr, int bufA, int bufB, int bufC, int bufD, int sleepConsumer){
     int buffid = shmget(BUFFKEY, 4*sizeof(struct Queue), 0600);
     struct Queue *buffer = (struct Queue*)shmat(buffid, NULL, 0);
     int semid = semget(MUTSYSKEY, 4, 0600);
@@ -244,24 +239,21 @@ void Consumer(int nr, int bufA, int bufB, int bufC, int bufD){
     ///
     printf("***********Consumer %d \tA: %d, B: %d, C: %d, D: %d\n", nr, bufA, bufB, bufC, bufD);
     while(1){
-        //downC1S(fullid);
         downClient(fullid, bufA, bufB, bufC, bufD);
-        //downS(semid, 0);
         downGroup(semid, bufA, bufB, bufC, bufD);
             printf("\tCONSUMER %d\n", nr);
             for(int i=0; i<bufA; ++i) getFromBuf(&buffer[0]); //kolejka A
             for(int i=0; i<bufB; ++i) getFromBuf(&buffer[1]); //kolejka B
             for(int i=0; i<bufC; ++i) getFromBuf(&buffer[2]); //kolejka C
             for(int i=0; i<bufD; ++i) getFromBuf(&buffer[3]); //kolejka D
-        //upS(semid, 0);
         upGroup(semid, bufA, bufB, bufC, bufD);
-        //upC1S(emptyid);
         upClient(emptyid, bufA, bufB, bufC, bufD);
         upS(groupEmptyId, 0, bufA+bufB+bufC+bufD); // usunieto 1 elem z jakiejs kolejki = wzrosla liczba pustych elementow
-        sleep(80);
+        sleep(sleepConsumer);
     }
 }
 int main() {
+    srand(time(NULL));
     int buffid = shmget(BUFFKEY, 4*sizeof(struct Queue), IPC_CREAT|0600);
     struct Queue *buffer = (struct Queue*)shmat(buffid, NULL, 0);
 
@@ -302,32 +294,58 @@ int main() {
         buffer[i].tail=0;
     }
 //////////////
+    int sleepConsumer, sleepProducer;
+    printf("Podaj na ile sekund ma sie usypiac Producer (jesli podasz -1, zostanie wylosowane): ");
+    scanf("%d", &sleepProducer);
+    if(sleepProducer == -1){
+        sleepProducer = rand()%10 +1;
+        printf ("Wylosowano: %d\n", sleepProducer);
+    }
+    printf("Podaj na ile sekund ma sie usypiac Consumer (jesli podasz -1, zostanie wylosowane): ");
+    scanf("%d", &sleepConsumer);
+    if(sleepConsumer == -1){
+        sleepConsumer = rand()%10 +1;
+        printf("Wylosowano: %d\n", sleepConsumer);
+    }
+
     printf("Podaj ilosc konsumentow: ");
     int iloscKonsumentow;
     scanf("%d", &iloscKonsumentow);
-    int tab[10][4]; // to trzeba zmienic na dynamiczne alokowanie
-    for(int i=0; i<iloscKonsumentow; ++i){
-        printf("Podaj dla konsumenta nr %d z ktorej kolejki ma zabierac po kolei A,B,C,D: ", i);
-        scanf("%d%d%d%d", &tab[i][0], &tab[i][1], &tab[i][2], &tab[i][3]);
+    int **tab;
+    if(iloscKonsumentow != 0) {
+        tab = malloc(iloscKonsumentow*sizeof(int *));
+        for(int i=0; i<iloscKonsumentow; ++i)
+            tab[i] = malloc(4*sizeof(int));
+
+
+        for(int i=0; i<iloscKonsumentow; ++i){
+            printf("Podaj dla konsumenta nr %d z ktorej kolejki ma zabierac po kolei A,B,C,D: ", i);
+            scanf("%d%d%d%d", &tab[i][0], &tab[i][1], &tab[i][2], &tab[i][3]);
+        }
     }
 //////////////
     pid_t pid[iloscKonsumentow+3];
     pid[0]=fork();
-    if(pid[0]==0){ Producent(); }
+    if(pid[0]==0){ Producent(sleepProducer); }
     pid[1]=fork();
-    if(pid[1]==0) { Consumer(0, 1, 2, 3, 0); }
+    if(pid[1]==0) { Consumer(0, 1, 2, 3, 0, sleepConsumer); }
     pid[2]=fork();
-    if(pid[2]==0) { Consumer(1, 3, 2, 1, 0); }
+    if(pid[2]==0) { Consumer(1, 3, 2, 1, 0, sleepConsumer); }
 
     for(int i=0; i<iloscKonsumentow; ++i){
         pid[i+3]=fork();
-        if(pid[i+3]==0){ Consumer(i+2, tab[i][0], tab[i][1], tab[i][2], tab[i][3]); }
+        if(pid[i+3]==0){ Consumer(i+2, tab[i][0], tab[i][1], tab[i][2], tab[i][3], sleepConsumer); }
     }
 
-    sleep(70);
+    sleep(2);
     for(int i=0; i<iloscKonsumentow+3; ++i)
         kill(pid[i], SIGKILL);
+    if(iloscKonsumentow!=0){ //zwalania tablicy
+        for(int i=0; i<iloscKonsumentow; ++i)
+            free(tab[i]);
 
+        free(tab);
+    }
     shmdt(buffer);
 }
 
