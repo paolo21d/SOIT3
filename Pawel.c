@@ -156,20 +156,20 @@ void Consumer(int nr){ //konument wyjmuje zawsze z tej samej kolejki o indexie: 
         upS(mutex, nr);
         upS(emptyid, nr);
         upS(groupEmptyId, 0); // usunieto 1 elem z jakiejs kolejki = wzrosla liczba pustych elementow
-        sleep(25);
+        sleep(2);
     }
 }
 int main() {
     int buffid = shmget(BUFFKEY, ILOSC_KOLEJEK*sizeof(struct Queue), IPC_CREAT|0600); //pamiec wspoldzielona
     struct Queue *buffer = (struct Queue*)shmat(buffid, NULL, 0);
 
-    int semid = semget(MUTSYSKEY, ILOSC_KOLEJEK, IPC_CREAT|IPC_EXCL|0600); //mutex - blokuje dostep do danej kolejki
-    if(semid==-1){
-        semid = semget(MUTSYSKEY, ILOSC_KOLEJEK, 0600);
-        if(semid==-1) perror("BLAD SEMID");
+    int mutex = semget(MUTSYSKEY, ILOSC_KOLEJEK, IPC_CREAT|IPC_EXCL|0600); //mutex - blokuje dostep do danej kolejki
+    if(mutex==-1){
+        mutex = semget(MUTSYSKEY, ILOSC_KOLEJEK, 0600);
+        if(mutex==-1) perror("BLAD SEMID");
     }
     for(int i=0; i<ILOSC_KOLEJEK; ++i)
-        semctl(semid, i, SETVAL, (int)1);
+        semctl(mutex, i, SETVAL, (int)1);
 
     int emptyid = semget(EMPTYKEY, ILOSC_KOLEJEK, IPC_CREAT|IPC_EXCL|0600); //ile jest elemtnow empty w danej kolejce
     if(emptyid==-1){
